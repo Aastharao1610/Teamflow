@@ -1,0 +1,30 @@
+services:
+
+  redis:
+    image: redis:7-alpine
+   
+    ports:
+      - "6379:6379"
+    command: ["redis-server" ,"--appendonly" ,"yes"]
+    volumes:
+      - redis_data:/data
+
+  backend : 
+   build : .
+   
+   ports:
+    - "3000:3000" 
+   env_file:
+    - .env
+   depends_on:
+    - redis
+   volumes:
+    - .:/app
+    - /app/node_modules
+
+volumes:
+  redis_data:
+  backend_data:
+  
+
+
