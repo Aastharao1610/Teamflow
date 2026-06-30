@@ -3,6 +3,7 @@ import crypto from "crypto";
 
 import prisma from "../../lib/prisma";
 import redis from "../../lib/redis";
+import { AppError } from "../../utils/AppError";
 
 type ForgotPasswordInput = {
   email: string;
@@ -29,7 +30,7 @@ export const forgotPassword = async ({
   });
 
   if (!user) {
-    throw new Error("User not found");
+    throw AppError("User with this email is  not found", 404);
   }
 
   const token = crypto.randomBytes(32).toString("hex");
@@ -42,7 +43,8 @@ export const forgotPassword = async ({
   );
 
   return {
-    resetToken: token,
+    message: "Password reset token generated",
+    esetToken: token,
   };
 };
 
@@ -55,7 +57,7 @@ export const resetPassword = async ({
   );
 
   if (!userId) {
-    throw new Error("Invalid or expired reset token");
+    throw AppError("Invalid or expired reset token" , 401);
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -108,7 +110,7 @@ export const changePassword = async ({
   });
 
   if (!user) {
-    throw new Error("User not found");
+    throw AppError("User with this email is  not found" ,404);
   }
 
   const isMatch = await bcrypt.compare(
@@ -117,7 +119,7 @@ export const changePassword = async ({
   );
 
   if (!isMatch) {
-    throw new Error("Current password is incorrect");
+    throw AppError("Current password is incorrect");
   }
 
   const hashedPassword = await bcrypt.hash(

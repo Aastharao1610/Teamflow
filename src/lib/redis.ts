@@ -8,6 +8,11 @@ const redis = new Redis({
 
 });
 
+console.log("REDIS CONFIG:", {
+  host: process.env.REDIS_HOST,
+  port: process.env.REDIS_PORT,
+});
+
 redis.on("connect",()=>{
     console.log("Redis connected SuccessFully")
 })

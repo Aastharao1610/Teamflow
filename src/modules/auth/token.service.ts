@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import prisma from "../../lib/prisma";
 import redis from "../../lib/redis";
 import { generateAccessToken, generateRefreshToken } from "../../utils/jwt";
+import { AppError } from "../../utils/AppError";
 
 type RefreshTokenInput = {
   refreshToken: string;
@@ -32,7 +33,7 @@ export const refreshToken = async ({
   const storedToken = await redis.get(redisKey);
 
   if (!storedToken || storedToken !== refreshToken) {
-    throw new Error("Invalid refresh token");
+    throw AppError("Invalid refresh token" ,401);
   }
 
   const accessToken = generateAccessToken({

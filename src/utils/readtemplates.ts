@@ -14,10 +14,10 @@ export const readTemplate = async (
 
   let html = await fs.readFile(templatePath, "utf-8");
 
-  for (const key in replacements) {
+  for (const [key, value] of Object.entries(replacements)) {
     html = html.replaceAll(
       `{{${key}}}`,
-      replacements[key]
+      value
     );
   }
 

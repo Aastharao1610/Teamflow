@@ -34,7 +34,7 @@ model User {
 model DeviceSession {
   id          String   @id @default(cuid())
   userId      String
-  deviceId    String   @unique
+  deviceId   String   
   deviceName  String?
   userAgent   String?
   ipAddress   String?
@@ -46,4 +46,5 @@ model DeviceSession {
   user User @relation(fields: [userId], references: [id] ,onDelete: Cascade)
 
   @@index([userId])
+   @@unique([userId, deviceId])
 }

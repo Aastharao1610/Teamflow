@@ -4,6 +4,7 @@ import { sendMail } from "../../lib/mail";
 
 import { generateOtp } from "./auth.utils";
 import { readTemplate } from "../../utils/readtemplates";
+import { AppError } from "../../utils/AppError";
 
 type SendOtpInput = {
   email: string;
@@ -24,11 +25,11 @@ export const sendOtp = async ({
   });
 
   if (!user) {
-    throw new Error("User not found");
+    throw AppError("Usr with this email is not found" , 404);
   }
 
   if (user.isEmailVerified) {
-    throw new Error("Email already verified");
+    throw AppError("Email is  already verified" ,400);
   }
 
   const otp = generateOtp();
@@ -62,16 +63,21 @@ export const verifyOtp = async ({
   email,
   otp,
 }: VerifyOtpInput) => {
+
   const storedOtp = await redis.get(
     `email-otp:${email}`
   );
 
+  console.log("EMAIL INPUT:", email);
+console.log("OTP INPUT:", otp);
+console.log("STORED OTP FROM REDIS:", storedOtp);
+
   if (!storedOtp) {
-    throw new Error("OTP expired");
+    throw AppError("OTP expired" , 410);
   }
 
   if (storedOtp !== otp) {
-    throw new Error("Invalid OTP");
+    throw AppError("Invalid OTP", 400);
   }
 
   await prisma.user.update({

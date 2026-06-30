@@ -6,6 +6,7 @@ import jwt  from "jsonwebtoken";
 
 import { generateAccessToken ,generateRefreshToken } from "../../utils/jwt";
 import { sendOtp } from "./otp.service";
+import { AppError } from "../../utils/AppError";
 
 
 type LoginInput ={
@@ -37,11 +38,11 @@ export const login = async ({
         }
     });
     if(!user){
-        throw new Error("Invalid email or password");
+        throw AppError("Invalid email or password" , 401);
     }
     const isPasswordValid =await bcrypt.compare(password , user.password);
     if(!isPasswordValid){
-        throw new Error("Invalid email or password");
+        throw AppError("Invalid email or password" ,401);
     }
 
     const accessToken = generateAccessToken({userId :user.id ,deviceId} );
@@ -61,16 +62,16 @@ export const login = async ({
      update: {
       lastSeenAt: new Date(),
       isRevoked: false,
-      ipAddress,
-      deviceName,
-      userAgent,
+      ...(ipAddress !== undefined ? { ipAddress } : {}),
+      ...(deviceName !== undefined ? { deviceName } : {}),
+      ...(userAgent !== undefined ? { userAgent } : {}),
     },
      create: {
       userId: user.id,
       deviceId,
-      deviceName,
-      userAgent,
-      ipAddress,
+      ...(deviceName !== undefined ? { deviceName } : {}),
+      ...(userAgent !== undefined ? { userAgent } : {}),
+      ...(ipAddress !== undefined ? { ipAddress } : {}),
     },
   })
 
@@ -99,7 +100,7 @@ export const register = async (data: {
 });
 
 if (existingUser) {
-  throw new Error("Email already exists");
+  throw AppError("A user with this email address already exists." , 409);
 }
 
 const user = await prisma.user.create({
@@ -113,58 +114,12 @@ await sendOtp({
 });
 
 
-return user;
+return {
+  id: user.id,
+  name: user.name,
+  email: user.email,
 };
-
-export const refreshToken = async (token: string) => {
-  const payload = jwt.verify(
-    token,
-    process.env.REFRESH_TOKEN_SECRET!
-  ) as {
-    userId: string;
-    deviceId: string;
-  };
-
-  const redisKey = `refresh:${payload.userId}:${payload.deviceId}`;
-  const storedToken =await redis.get(redisKey);
-
-   if (!storedToken || storedToken !== token) {
-    throw new Error("Invalid refresh token");
-  }
-
-  const accessToken =generateAccessToken({
-    userId :payload.userId,
-    deviceId :payload.deviceId,
-  })
-
-  const newRefreshToken =generateRefreshToken({
-    userId :payload.userId,
-    deviceId : payload.deviceId
-  })
-
-  await redis.set(
-    redisKey,
-    newRefreshToken,
-    "EX",
-    60 * 60 * 24 * 7
-  );
-
-
-    await prisma.deviceSession.update({
-    where: {
-      deviceId: payload.deviceId,
-    },
-    data: {
-      lastSeenAt: new Date(),
-    },
-  });
-
-  return{
-    accessToken,
-    refreshToken : newRefreshToken
-  }
-}
-
+};
 
 export const logout = async ({
   userId,
