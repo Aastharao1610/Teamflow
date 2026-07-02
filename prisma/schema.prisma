@@ -12,6 +12,18 @@ datasource db {
   provider = "postgresql"
 }
 
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model User {
   id       String @id @default(cuid())
   name     String
@@ -26,7 +38,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  OwnedOrganizations Organization[]
+  ownedOrganizations Organization[]       @relation("OrganizationOwner")
   organizations      OrganizationMember[]
 
   organizationInvitations OrganizationInvitation[] @relation("InvitedBy")
@@ -45,7 +57,7 @@ model DeviceSession {
   lastSeenAt DateTime @default(now())
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id])
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, deviceId])
   @@index([userId])
@@ -60,23 +72,26 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner User @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   members OrganizationMember[]
 
   invitations OrganizationInvitation[]
+  @@index([ownerId])
 }
 
 model OrganizationMember {
-  id             String       @id @default(cuid())
+  id             String           @id @default(cuid())
   organizationId String
   userId         String
-  role           String
-  joinedAt       DateTime     @default(now())
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           OrganizationRole
+  joinedAt       DateTime         @default(now())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
 }
 
 model OrganizationInvitation {
@@ -88,7 +103,7 @@ model OrganizationInvitation {
   organizationId String
   invitedById    String
 
-  status String @default("PENDING")
+  status InvitationStatus @default(PENDING)
 
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -96,4 +111,8 @@ model OrganizationInvitation {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   invitedBy User @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([status])
 }

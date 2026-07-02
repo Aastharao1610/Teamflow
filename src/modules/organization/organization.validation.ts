@@ -1,4 +1,4 @@
-import  { z } from "zod";
+import { z } from "zod";
 
 export const createOrganizationSchema = z.object({
   name: z
@@ -10,4 +10,16 @@ export const createOrganizationSchema = z.object({
 
 export const inviteMemberSchema = z.object({
   email: z.email().trim().toLowerCase(),
+});
+
+export const acceptInvitationSchema = z.object({
+  token: z.string().min(1),
+});
+
+export const rejectInvitationSchema = z.object({
+  token: z.string().min(1),
+});
+
+export const transferOwnershipSchema = z.object({
+  newOwnerId: z.string().min(1),
 });
