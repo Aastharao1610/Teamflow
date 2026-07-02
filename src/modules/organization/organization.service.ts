@@ -12,6 +12,8 @@ import crypto from "crypto";
 import type { InviteMemberInput } from "./organization.types";
 import { sendMail } from "../../lib/mail";
 
+import { ORGANIZATION_ROLE, INVITATION_STATUS } from "./organization.constants";
+
 const generateSlug = (name: string) => {
   return name
     .trim()
@@ -42,7 +44,7 @@ export const createOrganization = async (input: CreateOrganizationInput) => {
       members: {
         create: {
           userId,
-          role: "OWNER",
+          role: ORGANIZATION_ROLE.OWNER,
         },
       },
     },
@@ -112,7 +114,7 @@ export const getOrganizationBySlug = async (slug: string, userId: string) => {
 
 export const updateOrganization = async (
   slug: string,
-  userId: string,
+
   data: { name?: string },
 ) => {
   const organization = await prisma.organization.findUnique({
@@ -121,10 +123,6 @@ export const updateOrganization = async (
 
   if (!organization) {
     throw AppError("Organization not found", 404);
-  }
-
-  if (organization.ownerId !== userId) {
-    throw AppError("You are not authorized to update this organization", 403);
   }
 
   const updatedOrganization = await prisma.organization.update({
@@ -164,13 +162,6 @@ export const getOrganizationById = async (id: string, userId: string) => {
     throw AppError("Organization not found", 404);
   }
 
-  const isMember = organization.members.some(
-    (member) => member.userId === userId,
-  );
-  if (organization.ownerId !== userId && !isMember) {
-    throw AppError("You don't have access to this organization", 403);
-  }
-
   return organization;
 };
 
@@ -182,9 +173,7 @@ export const deleteOrganization = async (id: string, userId: string) => {
   if (!organization) {
     throw AppError("Orgnanization not found", 404);
   }
-  if (organization.ownerId !== userId) {
-    throw AppError("You are not authorized to delete this organization", 403);
-  }
+
   await prisma.organization.delete({
     where: { id },
   });
@@ -204,10 +193,6 @@ export const inviteMember = async ({
 
   if (!organization) {
     throw AppError("Organization not found", 404);
-  }
-
-  if (organization.ownerId !== invitedById) {
-    throw AppError("Only owner can invite members", 403);
   }
 
   const existingMember = await prisma.organizationMember.findFirst({
@@ -265,7 +250,7 @@ export const acceptInvitation = async ({
   if (!invitation) {
     throw AppError("Invalid invitation token", 400);
   }
-  if (invitation.status !== "PENDING") {
+  if (invitation.status !== INVITATION_STATUS.PENDING) {
     throw AppError("Invitation already accepted or rejected", 400);
   }
   if (invitation.expiresAt < new Date()) {
@@ -286,7 +271,7 @@ export const acceptInvitation = async ({
     data: {
       organizationId: invitation.organizationId,
       userId,
-      role: "MEMBER",
+      role: ORGANIZATION_ROLE.MEMBER,
     },
   });
   await prisma.organizationInvitation.update({
@@ -294,7 +279,7 @@ export const acceptInvitation = async ({
       id: invitation.id,
     },
     data: {
-      status: "ACCEPTED",
+      status: INVITATION_STATUS.ACCEPTED,
     },
   });
   return { message: "Invitation accepted successfully" };
@@ -311,7 +296,7 @@ export const rejectInvitation = async ({ token }: RejectInvitationInput) => {
     throw AppError("Invitation not found", 404);
   }
 
-  if (invitation.status !== "PENDING") {
+  if (invitation.status !== INVITATION_STATUS.PENDING) {
     throw AppError("Invitation has already been processed", 400);
   }
 
@@ -324,7 +309,7 @@ export const rejectInvitation = async ({ token }: RejectInvitationInput) => {
       id: invitation.id,
     },
     data: {
-      status: "REJECTED",
+      status: INVITATION_STATUS.REJECTED,
     },
   });
 
@@ -378,7 +363,6 @@ export const leaveOrganization = async ({
 export const removeMember = async ({
   organizationId,
   memberId,
-  userId,
 }: RemoveMemberInput) => {
   const organization = await prisma.organization.findUnique({
     where: {
@@ -388,10 +372,6 @@ export const removeMember = async ({
 
   if (!organization) {
     throw AppError("Organization not found", 404);
-  }
-
-  if (organization.ownerId !== userId) {
-    throw AppError("Only owner can remove members", 403);
   }
 
   const member = await prisma.organizationMember.findFirst({
@@ -436,10 +416,6 @@ export const transferOwnership = async ({
     throw AppError("Organization not found", 404);
   }
 
-  if (organization.ownerId !== currentOwnerId) {
-    throw AppError("Only owner can transfer ownership", 403);
-  }
-
   const newOwner = await prisma.organizationMember.findUnique({
     where: {
       organizationId_userId: {
@@ -471,7 +447,7 @@ export const transferOwnership = async ({
         },
       },
       data: {
-        role: "ADMIN",
+        role: ORGANIZATION_ROLE.ADMIN,
       },
     }),
 
@@ -483,7 +459,7 @@ export const transferOwnership = async ({
         },
       },
       data: {
-        role: "OWNER",
+        role: ORGANIZATION_ROLE.OWNER,
       },
     }),
   ]);
