@@ -44,6 +44,8 @@ export const authenticate = (
     
 
     next();
+
+    console.log("Authorization Header:", req.headers.authorization);
   } catch(error) {
     console.error("JWT Verify Error:", error);
 

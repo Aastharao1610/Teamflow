@@ -1,6 +1,11 @@
-import app from "./app"
+import app from "./app";
+
 const PORT = 3000;
 
-app.listen(PORT , ()=>{
-console.log("Server is runnig on port 3000")
-})
+const server = app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+server.on("error", (err) => {
+  console.error(err);
+});
