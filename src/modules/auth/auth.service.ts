@@ -56,9 +56,12 @@ export const login = async ({
   );
 
   await prisma.deviceSession.upsert({
-    where: {
-        deviceId
-    },
+   where: {
+  userId_deviceId: {
+    userId: user.id,
+    deviceId,
+  },
+},
      update: {
       lastSeenAt: new Date(),
       isRevoked: false,
