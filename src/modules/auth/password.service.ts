@@ -4,6 +4,8 @@ import crypto from "crypto";
 import prisma from "../../lib/prisma";
 import redis from "../../lib/redis";
 import { AppError } from "../../utils/AppError";
+import { readTemplate } from "../../utils/readtemplates";
+import { sendMail } from "../../lib/mail";
 
 type ForgotPasswordInput = {
   email: string;
@@ -20,9 +22,7 @@ type ChangePasswordInput = {
   newPassword: string;
 };
 
-export const forgotPassword = async ({
-  email,
-}: ForgotPasswordInput) => {
+export const forgotPassword = async ({ email }: ForgotPasswordInput) => {
   const user = await prisma.user.findUnique({
     where: {
       email,
@@ -30,21 +30,28 @@ export const forgotPassword = async ({
   });
 
   if (!user) {
-    throw AppError("User with this email is  not found", 404);
+    return {
+      message: "If the email exists, a password reset link has been sent",
+    };
   }
 
   const token = crypto.randomBytes(32).toString("hex");
 
-  await redis.set(
-    `reset-password:${token}`,
-    user.id,
-    "EX",
-    60 * 15
-  );
+  await redis.set(`reset-password:${token}`, user.id, "EX", 60 * 15);
 
+  const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+  let html = await readTemplate("reset-password.html", {
+    resetLink,
+  });
+
+  await sendMail({
+    to: email,
+    subject: "Password Reset Request",
+    html,
+  });
   return {
-    message: "Password reset token generated",
-    esetToken: token,
+    message: "Password reset email sent successfully",
   };
 };
 
@@ -52,12 +59,10 @@ export const resetPassword = async ({
   token,
   password,
 }: ResetPasswordInput) => {
-  const userId = await redis.get(
-    `reset-password:${token}`
-  );
+  const userId = await redis.get(`reset-password:${token}`);
 
   if (!userId) {
-    throw AppError("Invalid or expired reset token" , 401);
+    throw AppError("Invalid or expired reset token", 401);
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -90,9 +95,7 @@ export const resetPassword = async ({
   });
 
   for (const session of sessions) {
-    await redis.del(
-      `refresh:${userId}:${session.deviceId}`
-    );
+    await redis.del(`refresh:${userId}:${session.deviceId}`);
   }
 
   await redis.del(`reset-password:${token}`);
@@ -110,22 +113,16 @@ export const changePassword = async ({
   });
 
   if (!user) {
-    throw AppError("User with this email is  not found" ,404);
+    throw AppError("User with this email is  not found", 404);
   }
 
-  const isMatch = await bcrypt.compare(
-    currentPassword,
-    user.password
-  );
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
 
   if (!isMatch) {
     throw AppError("Current password is incorrect");
   }
 
-  const hashedPassword = await bcrypt.hash(
-    newPassword,
-    10
-  );
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
 
   await prisma.user.update({
     where: {
@@ -135,4 +132,4 @@ export const changePassword = async ({
       password: hashedPassword,
     },
   });
-}
+};

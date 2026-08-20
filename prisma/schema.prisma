@@ -12,6 +12,51 @@ datasource db {
   provider = "postgresql"
 }
 
+enum workspaceRole {
+  ADMIN
+  MEMBER
+}
+
+enum projectRole {
+  ADMIN
+  MEMBER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskActivityType {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  ASSIGNEE_ADDED
+  ASSIGNEE_REMOVED
+  COMMENT_ADDED
+  COMMENT_UPDATED
+  COMMENT_DELETED
+  DELETED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_STATUS_CHANGED
+  TASK_COMMENT_ADDED
+  PROJECT_MEMBER_ADDED
+  ORGANIZATION_INVITATION
+}
+
 model User {
   id       String @id @default(cuid())
   name     String
@@ -31,7 +76,18 @@ model User {
 
   organizationInvitations OrganizationInvitation[] @relation("InvitedBy")
 
+  workspaces workspaceMember[]
+  notifications Notification[]
+
   deviceSessions DeviceSession[]
+  taskComments   TaskComment[]
+  taskActivities TaskActivity[]
+
+  createdProjects    Project[]       @relation("ProjectCreator")
+  projectMemberships ProjectMember[]
+  createdTasks       Task[]          @relation("TaskCreator")
+  taskAssignments    TaskAssignee[]
+  workspacesCreated  Workspace[]     @relation("WorkspaceCreator")
 }
 
 model DeviceSession {
@@ -65,6 +121,8 @@ model Organization {
   members OrganizationMember[]
 
   invitations OrganizationInvitation[]
+
+  workspaces Workspace[]
 }
 
 model OrganizationMember {
@@ -96,4 +154,173 @@ model OrganizationInvitation {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   invitedBy User @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+}
+
+model Workspace {
+  id String @id @default(cuid())
+
+  name        String
+  description String?
+
+  organizationId String
+
+  createdById String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  projects  Project[]
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  members      workspaceMember[]
+
+  @@index([organizationId])
+  @@index([createdById])
+}
+
+model workspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        workspaceRole
+  joinedAt    DateTime      @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model Project {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  workspaceId String
+  createdById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  members ProjectMember[]
+  tasks   Task[]
+
+  @@index([workspaceId])
+  @@index([createdById])
+}
+
+model ProjectMember {
+  id        String      @id @default(cuid())
+  projectId String
+  userId    String
+  role      projectRole
+  joinedAt  DateTime    @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model Task {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+
+  status   TaskStatus   @default(TODO)
+  priority TaskPriority @default(MEDIUM)
+
+  projectId   String
+  createdById String
+
+  dueDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  assignees  TaskAssignee[]
+  comments   TaskComment[]
+  activities TaskActivity[]
+
+  @@index([projectId])
+  @@index([createdById])
+  @@index([status])
+}
+
+model TaskAssignee {
+  id     String @id @default(cuid())
+  taskId String
+  userId String
+
+  assignedAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
+}
+
+model TaskComment {
+  id      String @id @default(cuid())
+  content String
+  taskId  String
+  userId  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model TaskActivity {
+  id       String           @id @default(cuid())
+  taskId   String
+  userId   String
+  type     TaskActivityType
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  read      Boolean          @default(false)
+
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
 }

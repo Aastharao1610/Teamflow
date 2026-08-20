@@ -1,14 +1,18 @@
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import prisma from "../../lib/prisma";
 
 import * as authService from "./auth.service";
 import * as tokenService from "./token.service";
-import * as passwordService from './password.service'
-import * as otpService from "./otp.service"
+import * as passwordService from "./password.service";
+import * as otpService from "./otp.service";
 
 import type { AuthRequest } from "../../middlewares/auth.middleware";
 
-export const register = async (req: Request, res: Response) => {
+export const register = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const user = await authService.register(req.body);
 
@@ -17,17 +21,15 @@ export const register = async (req: Request, res: Response) => {
       data: user,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-
-    res.status(400).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const result = await authService.login(req.body);
 
@@ -36,17 +38,15 @@ export const login = async (req: Request, res: Response) => {
       data: result,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-
-    res.status(401).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
-export const refreshToken = async (req: Request, res: Response) => {
+export const refreshToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const result = await tokenService.refreshToken(req.body);
 
@@ -55,19 +55,14 @@ export const refreshToken = async (req: Request, res: Response) => {
       data: result,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-
-    res.status(401).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
 export const logout = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
+  next: NextFunction,
 ) => {
   try {
     await tokenService.logout(req.user!);
@@ -77,19 +72,14 @@ export const logout = async (
       message: "Logged out successfully",
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-
-    res.status(500).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
 export const logoutAll = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
+  next: NextFunction,
 ) => {
   try {
     await tokenService.logoutAll({
@@ -101,19 +91,14 @@ export const logoutAll = async (
       message: "Logged out from all devices",
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-
-    res.status(500).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
 export const getMe = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
+  next: NextFunction,
 ) => {
   try {
     const user = await prisma.user.findUnique({
@@ -133,19 +118,14 @@ export const getMe = async (
       data: user,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-
-    res.status(500).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
 export const forgotPassword = async (
   req: Request,
-  res: Response
+  res: Response,
+  next: NextFunction,
 ) => {
   try {
     const result = await passwordService.forgotPassword(req.body);
@@ -155,19 +135,14 @@ export const forgotPassword = async (
       data: result,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-
-    res.status(400).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
 export const resetPassword = async (
   req: Request,
-  res: Response
+  res: Response,
+  next: NextFunction,
 ) => {
   try {
     await passwordService.resetPassword(req.body);
@@ -177,19 +152,14 @@ export const resetPassword = async (
       message: "Password reset successfully",
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-
-    res.status(400).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
 export const changePassword = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
+  next: NextFunction,
 ) => {
   try {
     await passwordService.changePassword({
@@ -203,19 +173,14 @@ export const changePassword = async (
       message: "Password changed successfully",
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Internal Server Error";
-
-    res.status(400).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
 export const sendOtp = async (
   req: Request,
-  res: Response
+  res: Response,
+  next: NextFunction,
 ) => {
   try {
     const result = await otpService.sendOtp(req.body);
@@ -225,23 +190,15 @@ export const sendOtp = async (
       data: result,
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Internal Server Error";
-
-    res.status(400).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
 export const verifyOtp = async (
   req: Request,
-  res: Response
+  res: Response,
+  next: NextFunction,
 ) => {
-  console.log("REQ BODY IN CONTROLLER:", req.body);
   try {
     const result = await otpService.verifyOtp(req.body);
 
@@ -250,21 +207,14 @@ export const verifyOtp = async (
       data: result,
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Internal Server Error";
-
-    res.status(400).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };
 
 export const resendOtp = async (
   req: Request,
-  res: Response
+  res: Response,
+  next: NextFunction,
 ) => {
   try {
     const result = await otpService.resendOtp(req.body);
@@ -274,14 +224,6 @@ export const resendOtp = async (
       data: result,
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Internal Server Error";
-
-    res.status(400).json({
-      success: false,
-      message,
-    });
+    next(error);
   }
 };

@@ -1,6 +1,6 @@
 import rateLimit from "express-rate-limit";
-import RedisStore from "rate-limit-redis";
 import redis from "../lib/redis";
+import RedisStore, { type RedisReply } from "rate-limit-redis";
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -10,10 +10,13 @@ export const authLimiter = rateLimit({
 
   message: {
     success: false,
-    message: "Too many requests from this IP, please try again after 15 minutes",
+    message:
+      "Too many requests from this IP, please try again after 15 minutes",
   },
 
   store: new RedisStore({
-    sendCommand: (...args: string[]) => redis.call(...args),
+    sendCommand: async (command: string, ...args: string[]) => {
+      return (await redis.call(command, ...args)) as RedisReply;
+    },
   }),
 });

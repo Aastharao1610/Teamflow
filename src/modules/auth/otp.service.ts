@@ -15,9 +15,7 @@ type VerifyOtpInput = {
   otp: string;
 };
 
-export const sendOtp = async ({
-  email,
-}: SendOtpInput) => {
+export const sendOtp = async ({ email }: SendOtpInput) => {
   const user = await prisma.user.findUnique({
     where: {
       email,
@@ -25,28 +23,20 @@ export const sendOtp = async ({
   });
 
   if (!user) {
-    throw AppError("Usr with this email is not found" , 404);
+    throw AppError("Usr with this email is not found", 404);
   }
 
   if (user.isEmailVerified) {
-    throw AppError("Email is  already verified" ,400);
+    throw AppError("Email is  already verified", 400);
   }
 
   const otp = generateOtp();
 
-  await redis.set(
-    `email-otp:${email}`,
-    otp,
-    "EX",
-    60 * 10
-  );
+  await redis.set(`email-otp:${email}`, otp, "EX", 60 * 10);
 
-  const html = await readTemplate(
-    "verify-email.html",
-    {
-      OTP: otp,
-    }
-  );
+  const html = await readTemplate("verify-email.html", {
+    OTP: otp,
+  });
 
   await sendMail({
     to: email,
@@ -59,21 +49,11 @@ export const sendOtp = async ({
   };
 };
 
-export const verifyOtp = async ({
-  email,
-  otp,
-}: VerifyOtpInput) => {
-
-  const storedOtp = await redis.get(
-    `email-otp:${email}`
-  );
-
-  console.log("EMAIL INPUT:", email);
-console.log("OTP INPUT:", otp);
-console.log("STORED OTP FROM REDIS:", storedOtp);
+export const verifyOtp = async ({ email, otp }: VerifyOtpInput) => {
+  const storedOtp = await redis.get(`email-otp:${email}`);
 
   if (!storedOtp) {
-    throw AppError("OTP expired" , 410);
+    throw AppError("OTP expired", 410);
   }
 
   if (storedOtp !== otp) {
@@ -98,12 +78,9 @@ console.log("STORED OTP FROM REDIS:", storedOtp);
   });
 
   if (user) {
-    const html = await readTemplate(
-      "welcome.html",
-      {
-        NAME: user.name,
-      }
-    );
+    const html = await readTemplate("welcome.html", {
+      NAME: user.name,
+    });
 
     await sendMail({
       to: email,
@@ -117,9 +94,7 @@ console.log("STORED OTP FROM REDIS:", storedOtp);
   };
 };
 
-export const resendOtp = async ({
-  email,
-}: SendOtpInput) => {
+export const resendOtp = async ({ email }: SendOtpInput) => {
   return sendOtp({
     email,
   });

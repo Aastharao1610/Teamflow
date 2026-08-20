@@ -1,16 +1,14 @@
-import prisma from  "../../lib/prisma";
+import prisma from "../../lib/prisma";
 import bcrypt from "bcrypt";
 import redis from "../../lib/redis";
-import jwt  from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 
-
-import { generateAccessToken ,generateRefreshToken } from "../../utils/jwt";
+import { generateAccessToken, generateRefreshToken } from "../../utils/jwt";
 import { sendOtp } from "./otp.service";
 import { AppError } from "../../utils/AppError";
 
-
-type LoginInput ={
-     email: string;
+type LoginInput = {
+  email: string;
   password: string;
   deviceId: string;
   deviceName?: string;
@@ -24,69 +22,72 @@ type LogoutInput = {
 };
 
 export const login = async ({
-    email,
-    password,
-    deviceId,
-    deviceName,
-    userAgent,
-    ipAddress,
-  }: LoginInput 
-) => {
-    const user = await prisma.user.findUnique({
-        where: {
-            email,
-        }
-    });
-    if(!user){
-        throw AppError("Invalid email or password" , 401);
-    }
-    const isPasswordValid =await bcrypt.compare(password , user.password);
-    if(!isPasswordValid){
-        throw AppError("Invalid email or password" ,401);
-    }
+  email,
+  password,
+  deviceId,
+  deviceName,
+  userAgent,
+  ipAddress,
+}: LoginInput) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
+  if (!user) {
+    throw AppError("Invalid email or password", 401);
+  }
+  const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    const accessToken = generateAccessToken({userId :user.id ,deviceId} );
-    const refreshToken = generateRefreshToken({userId :user.id ,deviceId} );
+  if (!isPasswordValid) {
+    throw AppError("Invalid email or password", 401);
+  }
+  if (!user.isEmailVerified) {
+    throw AppError("Please verify your email before logging in", 403);
+  }
 
-     await redis.set(
+  const accessToken = generateAccessToken({ userId: user.id, deviceId });
+  const refreshToken = generateRefreshToken({ userId: user.id, deviceId });
+
+  await redis.set(
     `refresh:${user.id}:${deviceId}`,
     refreshToken,
     "EX",
-    60 * 60 * 24 * 7
+    60 * 60 * 24 * 7,
   );
 
   await prisma.deviceSession.upsert({
-   where: {
-  userId_deviceId: {
-    userId: user.id,
-    deviceId,
-  },
-},
-     update: {
+    where: {
+      userId_deviceId: {
+        userId: user.id,
+        deviceId,
+      },
+    },
+    update: {
       lastSeenAt: new Date(),
       isRevoked: false,
       ...(ipAddress !== undefined ? { ipAddress } : {}),
       ...(deviceName !== undefined ? { deviceName } : {}),
       ...(userAgent !== undefined ? { userAgent } : {}),
     },
-     create: {
+    create: {
       userId: user.id,
       deviceId,
       ...(deviceName !== undefined ? { deviceName } : {}),
       ...(userAgent !== undefined ? { userAgent } : {}),
       ...(ipAddress !== undefined ? { ipAddress } : {}),
     },
-  })
+  });
 
-  return{
+  return {
     accessToken,
     refreshToken,
-    user:{
-        id:user.id,
-        name: user.name,
-        email :user.email,
-    }
-  }
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    },
+  };
 };
 
 export const register = async (data: {
@@ -94,45 +95,44 @@ export const register = async (data: {
   email: string;
   password: string;
 }) => {
-
-   const hashedPassword = await bcrypt.hash(data.password, 10);
+  const hashedPassword = await bcrypt.hash(data.password, 10);
   const existingUser = await prisma.user.findUnique({
-  where: {
-    email: data.email,
-  },
-});
+    where: {
+      email: data.email,
+    },
+  });
 
-if (existingUser) {
-  throw AppError("A user with this email address already exists." , 409);
-}
-
-const user = await prisma.user.create({
-  data:{
-    ...data, 
-    password: hashedPassword
+  if (existingUser) {
+    throw AppError("A user with this email address already exists.", 409);
   }
-});
-await sendOtp({
-  email: user.email,
-});
 
+  const user = await prisma.user.create({
+    data: {
+      ...data,
+      password: hashedPassword,
+    },
+  });
 
-return {
-  id: user.id,
-  name: user.name,
-  email: user.email,
+  await sendOtp({
+    email: user.email,
+  });
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+  };
 };
-};
 
-export const logout = async ({
-  userId,
-  deviceId,
-}: LogoutInput) => {
+export const logout = async ({ userId, deviceId }: LogoutInput) => {
   await redis.del(`refresh:${userId}:${deviceId}`);
 
   await prisma.deviceSession.update({
     where: {
-      deviceId,
+      userId_deviceId: {
+        deviceId,
+        userId,
+      },
     },
     data: {
       isRevoked: true,

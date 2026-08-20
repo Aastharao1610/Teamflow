@@ -1,113 +1,119 @@
 import prisma from "../../lib/prisma";
-import type { CreateOrganizationInput } from "./organization.types";
 import { AppError } from "../../utils/AppError";
 import crypto from "crypto";
-import type { InviteMemberInput } from "./organization.types";
+
 import { sendMail } from "../../lib/mail";
+import type {
+  AcceptInvitationInput,
+  CreateOrganizationInput,
+  InviteMemberInput,
+  LeaveOrganizationInput,
+  RejectInvitationInput,
+  RemoveMemberInput,
+  TransferOwnershipInput,
+} from "./organization.types";
+const generateSlug = (name: string) => {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
 
-const generateSlug = (name: string)=>{
-    return name
-         .trim()
-         .toLowerCase()
-         .replace(/[^a-z0-9]+/g, "-")
-         .replace(/^-+|-+$/g, "");
-}
+export const createOrganization = async (input: CreateOrganizationInput) => {
+  const { name, userId } = input;
 
-export const createOrganization =async(input: CreateOrganizationInput)=>{
-    const {name, userId} = input;
+  const slug = generateSlug(name);
 
-    const slug = generateSlug(name);
+  const existingOrganization = await prisma.organization.findUnique({
+    where: { slug },
+  });
 
-    const existingOrganization = await prisma.organization.findUnique({
-        where: { slug },
-    });
+  if (existingOrganization) {
+    throw AppError("Organization with this name already exists", 400);
+  }
 
-    if(existingOrganization){
-        throw AppError("Organization with this name already exists", 400);
-    }
+  const organization = await prisma.organization.create({
+    data: {
+      name,
+      slug,
+      ownerId: userId,
 
-    const organization =
-    await prisma.organization.create({
-      data: {
-        name,
-        slug,
-        ownerId: userId,
-
-        members: {
-          create: {
-            userId,
-            role: "OWNER",
-          },
+      members: {
+        create: {
+          userId,
+          role: "OWNER",
         },
       },
+    },
 
-      include: {
-        members: true,
-      },
-    });
+    include: {
+      members: true,
+    },
+  });
 
-    return organization;
-}   
+  return organization;
+};
 
 export const getMyOrganizations = async (userId: string) => {
   const organizations = await prisma.organization.findMany({
     where: {
-      OR: [
-        { ownerId: userId },
-        { members: { some: { userId } } },
-      ],
+      OR: [{ ownerId: userId }, { members: { some: { userId } } }],
     },
     include: {
       members: true,
     },
   });
 
-  console.log("Organizations for userId", userId, ":", organizations);
   return organizations;
 };
 
-
-export const getOrganizationBySlug =async(slug: string ,userId  :string) =>{
-   const organization = await prisma.organization.findUnique({
-    where :{
-        slug,
-        members : {
-            some:{
-                userId
-            },
+export const getOrganizationBySlug = async (slug: string, userId: string) => {
+  const organization = await prisma.organization.findUnique({
+    where: {
+      slug,
+      members: {
+        some: {
+          userId,
         },
-    },
-    include :{
-        owner : {
-            select :{
-                id:true,
-                name : true,
-                email :true
-            }
-        },
-        members : {
-            include :{
-                user : {
-             select :{
-                id:true,
-                name : true,
-                email :true
-            }
-          }
-        }
       },
-    }
-    
-   });
-   if(!organization){
-    throw AppError("Organization not found or you don't have access to it", 404);
-   }
+    },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      members: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!organization) {
+    throw AppError(
+      "Organization not found or you don't have access to it",
+      404,
+    );
+  }
 
-   return organization;
-}
+  return organization;
+};
 
-
-export const updateOrganization = async (slug: string, userId: string, data: { name?: string }) => {
+export const updateOrganization = async (
+  slug: string,
+  userId: string,
+  data: { name?: string },
+) => {
   const organization = await prisma.organization.findUnique({
     where: { slug },
   });
@@ -117,7 +123,7 @@ export const updateOrganization = async (slug: string, userId: string, data: { n
   }
 
   if (organization.ownerId !== userId) {
-    throw AppError("You are not authorized to update this organization", 403);
+    throw AppError("Only the organization owner can update it", 403);
   }
 
   const updatedOrganization = await prisma.organization.update({
@@ -126,8 +132,7 @@ export const updateOrganization = async (slug: string, userId: string, data: { n
   });
 
   return updatedOrganization;
-}
-
+};
 
 export const getOrganizationById = async (id: string, userId: string) => {
   const organization = await prisma.organization.findUnique({
@@ -158,7 +163,9 @@ export const getOrganizationById = async (id: string, userId: string) => {
     throw AppError("Organization not found", 404);
   }
 
-  const isMember = organization.members.some(member => member.userId === userId);
+  const isMember = organization.members.some(
+    (member) => member.userId === userId,
+  );
   if (organization.ownerId !== userId && !isMember) {
     throw AppError("You don't have access to this organization", 403);
   }
@@ -166,24 +173,31 @@ export const getOrganizationById = async (id: string, userId: string) => {
   return organization;
 };
 
-
-
 export const deleteOrganization = async (id: string, userId: string) => {
-    const organization = await prisma.organization.findUnique({
-        where : { id }
-    })
+  const organization = await prisma.organization.findUnique({
+    where: {
+      id,
+    },
+  });
 
-    if(!organization){
-        throw AppError("Orgnanization not found", 404);
-    }
-    if(organization.ownerId !== userId){
-        throw AppError("You are not authorized to delete this organization", 403);
-    }
-    await prisma.organization.delete({
-        where : { id }
-    })
-    return { message : "Organization deleted successfully" }
-}
+  if (!organization) {
+    throw AppError("Organization not found", 404);
+  }
+
+  if (organization.ownerId !== userId) {
+    throw AppError("Only the organization owner can delete it", 403);
+  }
+
+  await prisma.organization.delete({
+    where: {
+      id,
+    },
+  });
+
+  return {
+    message: "Organization deleted successfully",
+  };
+};
 
 export const inviteMember = async ({
   organizationId,
@@ -201,43 +215,33 @@ export const inviteMember = async ({
   }
 
   if (organization.ownerId !== invitedById) {
-    throw AppError(
-      "Only owner can invite members",
-      403
-    );
+    throw AppError("Only owner can invite members", 403);
   }
 
-  const existingMember =
-    await prisma.organizationMember.findFirst({
-      where: {
-        organizationId,
-        user: {
-          email,
-        },
+  const existingMember = await prisma.organizationMember.findFirst({
+    where: {
+      organizationId,
+      user: {
+        email,
       },
-    });
+    },
+  });
 
   if (existingMember) {
-    throw AppError(
-      "User is already a member",
-      400
-    );
+    throw AppError("User is already a member", 400);
   }
 
   const token = crypto.randomBytes(32).toString("hex");
 
-  const invitation =
-    await prisma.organizationInvitation.create({
-      data: {
-        email,
-        token,
-        organizationId,
-        invitedById,
-        expiresAt: new Date(
-          Date.now() + 1000 * 60 * 60 * 24
-        ),
-      },
-    });
+  const invitation = await prisma.organizationInvitation.create({
+    data: {
+      email,
+      token,
+      organizationId,
+      invitedById,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+    },
+  });
 
   await sendMail({
     to: email,
@@ -247,11 +251,89 @@ export const inviteMember = async ({
 
       <p>Click below to join the organization.</p>
 
-      <a href="http://localhost:3001/invitations/${token}">
+     <a href="${process.env.FRONTEND_URL}/invitations/${token}">
         Accept Invitation
       </a>
     `,
   });
 
   return invitation;
+};
+
+export const acceptInvitation = async ({
+  invitationToken,
+  userId,
+}: AcceptInvitationInput) => {
+  const invitation = await prisma.organizationInvitation.findUnique({
+    where: {
+      token: invitationToken,
+    },
+  });
+
+  if (!invitation) {
+    throw AppError("Invalid invitation token", 400);
+  }
+
+  if (invitation.status !== "PENDING") {
+    throw AppError("Invitation has already been processed", 400);
+  }
+
+  if (invitation.expiresAt < new Date()) {
+    throw AppError("Invitation has expired", 400);
+  }
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      email: true,
+    },
+  });
+
+  if (!user) {
+    throw AppError("User not found", 404);
+  }
+
+  if (user.email !== invitation.email) {
+    throw AppError(
+      "This invitation was sent to a different email address",
+      403,
+    );
+  }
+
+  const existingMember = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: invitation.organizationId,
+        userId,
+      },
+    },
+  });
+
+  if (existingMember) {
+    throw AppError("You are already a member of this organization", 400);
+  }
+
+  await prisma.$transaction([
+    prisma.organizationMember.create({
+      data: {
+        organizationId: invitation.organizationId,
+        userId,
+        role: "MEMBER",
+      },
+    }),
+
+    prisma.organizationInvitation.update({
+      where: {
+        id: invitation.id,
+      },
+      data: {
+        status: "ACCEPTED",
+      },
+    }),
+  ]);
+
+  return {
+    message: "Invitation accepted successfully",
+  };
 };

@@ -11,7 +11,7 @@ export interface AuthRequest extends Request {
 export const authenticate = (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const authHeader = req.headers.authorization;
@@ -34,21 +34,16 @@ export const authenticate = (
 
     const payload = jwt.verify(
       token,
-      process.env.ACCESS_TOKEN_SECRET!
+      process.env.ACCESS_TOKEN_SECRET!,
     ) as unknown as {
       userId: string;
       deviceId: string;
     };
 
     req.user = payload;
-    
 
     next();
-
-    console.log("Authorization Header:", req.headers.authorization);
-  } catch(error) {
-    console.error("JWT Verify Error:", error);
-
+  } catch (error) {
     return res.status(401).json({
       success: false,
       message: "Unauthorized",

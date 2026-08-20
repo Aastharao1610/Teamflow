@@ -17,12 +17,10 @@ type LogoutAllInput = {
   userId: string;
 };
 
-export const refreshToken = async ({
-  refreshToken,
-}: RefreshTokenInput) => {
+export const refreshToken = async ({ refreshToken }: RefreshTokenInput) => {
   const payload = jwt.verify(
     refreshToken,
-    process.env.REFRESH_TOKEN_SECRET!
+    process.env.REFRESH_TOKEN_SECRET!,
   ) as {
     userId: string;
     deviceId: string;
@@ -33,7 +31,7 @@ export const refreshToken = async ({
   const storedToken = await redis.get(redisKey);
 
   if (!storedToken || storedToken !== refreshToken) {
-    throw AppError("Invalid refresh token" ,401);
+    throw AppError("Invalid refresh token", 401);
   }
 
   const accessToken = generateAccessToken({
@@ -50,8 +48,12 @@ export const refreshToken = async ({
 
   await prisma.deviceSession.update({
     where: {
-      deviceId: payload.deviceId,
+      userId_deviceId: {
+        userId: payload.userId,
+        deviceId: payload.deviceId,
+      },
     },
+
     data: {
       lastSeenAt: new Date(),
     },
@@ -63,15 +65,15 @@ export const refreshToken = async ({
   };
 };
 
-export const logout = async ({
-  userId,
-  deviceId,
-}: LogoutInput) => {
+export const logout = async ({ userId, deviceId }: LogoutInput) => {
   await redis.del(`refresh:${userId}:${deviceId}`);
 
   await prisma.deviceSession.update({
     where: {
-      deviceId,
+      userId_deviceId: {
+        userId,
+        deviceId,
+      },
     },
     data: {
       isRevoked: true,
@@ -79,9 +81,7 @@ export const logout = async ({
   });
 };
 
-export const logoutAll = async ({
-  userId,
-}: LogoutAllInput) => {
+export const logoutAll = async ({ userId }: LogoutAllInput) => {
   const sessions = await prisma.deviceSession.findMany({
     where: {
       userId,

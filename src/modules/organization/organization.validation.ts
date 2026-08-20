@@ -1,4 +1,4 @@
-import  { z } from "zod";
+import { z } from "zod";
 
 export const createOrganizationSchema = z.object({
   name: z
@@ -10,4 +10,8 @@ export const createOrganizationSchema = z.object({
 
 export const inviteMemberSchema = z.object({
   email: z.email().trim().toLowerCase(),
+});
+
+export const acceptInvitationSchema = z.object({
+  invitationToken: z.string().trim().min(1, "Invitation token is required"),
 });
