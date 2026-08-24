@@ -10,16 +10,11 @@ export const getMyNotifications = async (
   next: NextFunction,
 ) => {
   try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 20;
-
-    const unreadOnly = req.query.unreadOnly === "true";
-
     const result = await notificationService.getMyNotifications({
       userId: req.user!.userId,
-      page,
-      limit,
-      unreadOnly,
+      page: req.query.page as unknown as number,
+      limit: req.query.limit as unknown as number,
+      unreadOnly: req.query.unreadOnly as unknown as boolean,
     });
 
     res.status(200).json({
@@ -31,7 +26,6 @@ export const getMyNotifications = async (
     next(error);
   }
 };
-
 export const getUnreadNotificationCount = async (
   req: AuthRequest,
   res: Response,

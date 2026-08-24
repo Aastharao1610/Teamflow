@@ -62,6 +62,21 @@ export type GetTasksByProjectInput = {
   status?: "TODO" | "IN_PROGRESS" | "DONE" | "CANCELLED";
   priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   assigneeId?: string;
+
+  dueDateFilter?: "OVERDUE" | "TODAY" | "UPCOMING" | "NO_DUE_DATE";
+
+  sortBy?: "createdAt" | "updatedAt" | "title" | "dueDate";
+  sortOrder?: "asc" | "desc";
+};
+
+export type GetMyTasksInput = {
+  userId: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: "TODO" | "IN_PROGRESS" | "DONE" | "CANCELLED";
+  priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  dueDateFilter?: "OVERDUE" | "TODAY" | "UPCOMING" | "NO_DUE_DATE";
   sortBy?: "createdAt" | "updatedAt" | "title" | "dueDate";
   sortOrder?: "asc" | "desc";
 };

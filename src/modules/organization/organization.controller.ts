@@ -184,3 +184,104 @@ export const acceptInvitation = async (
     next(error);
   }
 };
+
+export const rejectInvitation = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const result = await organizationService.rejectInvitation({
+      organizationId: req.body.organizationId,
+      userId: req.user!.userId,
+      inviteToken: req.body.inviteToken,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const removeMember = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { id, memberId } = req.params;
+
+    if (!id || Array.isArray(id) || !memberId || Array.isArray(memberId)) {
+      return next(new Error("Invalid organization or member ID"));
+    }
+
+    const result = await organizationService.removeMember({
+      organizationId: id,
+      memberId,
+      removedById: req.user!.userId,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const leaveOrganization = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || Array.isArray(id)) {
+      return next(new Error("Invalid organization ID"));
+    }
+
+    const result = await organizationService.leaveOrganization({
+      organizationId: id,
+      userId: req.user!.userId,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const transferOwnership = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || Array.isArray(id)) {
+      return next(new Error("Invalid organization ID"));
+    }
+
+    const result = await organizationService.transferOwnership({
+      organizationId: id,
+      newOwnerId: req.body.newOwnerId,
+      currentOwnerId: req.user!.userId,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

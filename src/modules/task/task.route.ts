@@ -16,6 +16,8 @@ import {
   getTaskComments,
   updateTaskComment,
   deleteTaskComment,
+  getMyTasks,
+  getTaskActivity,
 } from "./task.controller";
 
 import {
@@ -24,13 +26,22 @@ import {
   addTaskAssigneeSchema,
   createTaskCommentSchema,
   updateTaskCommentSchema,
+  getTasksByProjectSchema,
 } from "./task.validation";
 
 const router = Router();
+router.get("/my", authenticate, getMyTasks);
 
 router.post("/", authenticate, validate(createTaskSchema), createTask);
 
-router.get("/project/:projectId", authenticate, getTasksByProject);
+router.get(
+  "/project/:projectId",
+  authenticate,
+  validate(getTasksByProjectSchema),
+  getTasksByProject,
+);
+
+router.get("/:taskId/activity", authenticate, getTaskActivity);
 
 router.get("/:taskId", authenticate, getTaskById);
 

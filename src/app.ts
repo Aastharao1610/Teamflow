@@ -6,6 +6,7 @@ import workspaceRoutes from "./modules/workspace/workspace.route";
 import projectRoutes from "./modules/project/project.route";
 import taskroutes from "./modules/task/task.route";
 import notificationRoute from "./modules/notification/notification.route";
+import dashboardRoutes from "./modules/dashboard/dashboard.route";
 import helmet from "helmet";
 
 const app = express();
@@ -23,6 +24,7 @@ app.use("/api/v1/workspace", workspaceRoutes);
 app.use("/api/v1/project", projectRoutes);
 app.use("/api/v1/task", taskroutes);
 app.use("/api/v1/notification", notificationRoute);
+app.use("/api/v1/dashboard", dashboardRoutes);
 
 app.use(errorMiddleware);
 

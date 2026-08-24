@@ -15,3 +15,12 @@ export const inviteMemberSchema = z.object({
 export const acceptInvitationSchema = z.object({
   invitationToken: z.string().trim().min(1, "Invitation token is required"),
 });
+
+export const rejectInvitationSchema = z.object({
+  organizationId: z.string().trim().min(1, "Organization ID is required"),
+  inviteToken: z.string().trim().min(1, "Invitation token is required"),
+});
+
+export const transferOwnershipSchema = z.object({
+  newOwnerId: z.string().trim().min(1, "New owner ID is required"),
+});

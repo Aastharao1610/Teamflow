@@ -1,5 +1,6 @@
 import prisma from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
+import { notificationQueue } from "../../lib/queue";
 import type {
   AddProjectMemberInput,
   CreateProjectInput,
@@ -302,6 +303,15 @@ export const addProjectMember = async ({
     },
   });
 
+  await notificationQueue.add("create-notification", {
+    userId,
+    type: "PROJECT_MEMBER_ADDED",
+    title: "Added to project",
+    message: "You have been added to project",
+    data: {
+      projectId,
+    },
+  });
   return projectMember;
 };
 

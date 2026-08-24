@@ -1,7 +1,8 @@
 import prisma from "../../lib/prisma";
+import { TaskStatus } from "../../../generated/prisma/enums";
 import { AppError } from "../../utils/AppError";
 import { createTaskActivity } from "./task.activity";
-import { createNotification } from "../notification/notification.service";
+import { notificationQueue } from "../../lib/queue";
 
 import type {
   CreateTaskInput,
@@ -13,6 +14,7 @@ import type {
   UpdateTaskCommentInput,
   DeleteTaskCommentInput,
   GetTasksByProjectInput,
+  GetMyTasksInput,
 } from "./task.types";
 
 export const createTask = async ({
@@ -92,6 +94,7 @@ export const getTasksByProject = async ({
   status,
   priority,
   assigneeId,
+  dueDateFilter,
   sortBy = "createdAt",
   sortOrder = "desc",
 }: GetTasksByProjectInput) => {
@@ -109,6 +112,41 @@ export const getTasksByProject = async ({
   }
 
   const skip = (page - 1) * limit;
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+  const dueDateCondition =
+    dueDateFilter === "OVERDUE"
+      ? {
+          dueDate: {
+            lt: new Date(),
+          },
+          status: {
+            notIn: [TaskStatus.DONE, TaskStatus.CANCELLED],
+          },
+        }
+      : dueDateFilter === "TODAY"
+        ? {
+            dueDate: {
+              gte: startOfToday,
+              lt: startOfTomorrow,
+            },
+          }
+        : dueDateFilter === "UPCOMING"
+          ? {
+              dueDate: {
+                gte: startOfTomorrow,
+              },
+            }
+          : dueDateFilter === "NO_DUE_DATE"
+            ? {
+                dueDate: null,
+              }
+            : {};
 
   const where = {
     projectId,
@@ -135,8 +173,9 @@ export const getTasksByProject = async ({
           },
         }
       : {}),
-  };
 
+    ...dueDateCondition,
+  };
   const [tasks, total] = await prisma.$transaction([
     prisma.task.findMany({
       where,
@@ -279,6 +318,21 @@ export const updateTask = async ({
     throw AppError("You are not a member of this project", 403);
   }
 
+  const isAdmin = projectMember.role === "ADMIN";
+  const isCreator = task.createdById === updatedById;
+  const isAssigne = await prisma.taskAssignee.findUnique({
+    where: {
+      taskId_userId: {
+        taskId,
+        userId: updatedById,
+      },
+    },
+  });
+  if (!isAdmin && !isCreator && !isAssigne) {
+    throw AppError(
+      "Only project admins , task creators, or task assigne can update this task",
+    );
+  }
   const updatedTask = await prisma.task.update({
     where: {
       id: taskId,
@@ -337,7 +391,7 @@ export const updateTask = async ({
       assignees
         .filter((assignee) => assignee.userId !== updatedById)
         .map((assignee) =>
-          createNotification({
+          notificationQueue.add("create-notification", {
             userId: assignee.userId,
             type: "TASK_STATUS_CHANGED",
             title: "Task status changed",
@@ -449,6 +503,15 @@ export const addTaskAssignee = async ({
   if (!requester) {
     throw AppError("You are not a member of this project", 403);
   }
+  const isAdmin = (requester.role = "ADMIN");
+  const isCreator = task.createdById === assignedById;
+
+  if (!isAdmin && !isCreator) {
+    throw AppError(
+      "Only project admins or the task creator can manage assignees",
+      403,
+    );
+  }
 
   const targetMember = task.project.members.find(
     (member) => member.userId === userId,
@@ -496,7 +559,7 @@ export const addTaskAssignee = async ({
     },
   });
 
-  await createNotification({
+  await notificationQueue.add("create-notification", {
     userId,
     type: "TASK_ASSIGNED",
     title: "Task assigned",
@@ -681,7 +744,7 @@ export const createTaskComment = async ({
     assignees
       .filter((assignee) => assignee.userId !== userId)
       .map((assignee) =>
-        createNotification({
+        notificationQueue.add("create-notification", {
           userId: assignee.userId,
           type: "TASK_COMMENT_ADDED",
           title: "New task comment",
@@ -693,7 +756,6 @@ export const createTaskComment = async ({
         }),
       ),
   );
-
   return comment;
 };
 
@@ -856,5 +918,145 @@ export const deleteTaskComment = async ({
 
   return {
     message: "Comment deleted successfully",
+  };
+};
+
+export const getMyTasks = async ({
+  userId,
+  page = 1,
+  limit = 20,
+  search,
+  status,
+  priority,
+  dueDateFilter,
+  sortBy = "dueDate",
+  sortOrder = "asc",
+}: GetMyTasksInput) => {
+  const skip = (page - 1) * limit;
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+  const dueDateCondition =
+    dueDateFilter === "OVERDUE"
+      ? {
+          dueDate: {
+            lt: new Date(),
+          },
+          status: {
+            notIn: [TaskStatus.DONE, TaskStatus.CANCELLED],
+          },
+        }
+      : dueDateFilter === "TODAY"
+        ? {
+            dueDate: {
+              gte: startOfToday,
+              lt: startOfTomorrow,
+            },
+          }
+        : dueDateFilter === "UPCOMING"
+          ? {
+              dueDate: {
+                gte: startOfTomorrow,
+              },
+            }
+          : dueDateFilter === "NO_DUE_DATE"
+            ? {
+                dueDate: null,
+              }
+            : {};
+
+  const where = {
+    assignees: {
+      some: {
+        userId,
+      },
+    },
+
+    ...(search
+      ? {
+          OR: [
+            {
+              title: {
+                contains: search,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              description: {
+                contains: search,
+                mode: "insensitive" as const,
+              },
+            },
+          ],
+        }
+      : {}),
+
+    ...(status ? { status } : {}),
+    ...(priority ? { priority } : {}),
+    ...dueDateCondition,
+  };
+
+  const [tasks, total] = await prisma.$transaction([
+    prisma.task.findMany({
+      where,
+      skip,
+      take: limit,
+
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            workspaceId: true,
+          },
+        },
+
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+
+        assignees: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+    }),
+
+    prisma.task.count({
+      where,
+    }),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    tasks,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
   };
 };

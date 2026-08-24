@@ -1,7 +1,8 @@
 import { Router } from "express";
 
 import { authenticate } from "../../middlewares/auth.middleware";
-
+import { validate } from "../../middlewares/validation.middleware";
+import { getNotificationsSchema } from "./notification.validation";
 import {
   deleteNotification,
   getMyNotifications,
@@ -12,7 +13,12 @@ import {
 
 const router = Router();
 
-router.get("/", authenticate, getMyNotifications);
+router.get(
+  "/",
+  authenticate,
+  validate(getNotificationsSchema),
+  getMyNotifications,
+);
 
 router.get("/unread-count", authenticate, getUnreadNotificationCount);
 

@@ -78,12 +78,19 @@ export const getWorkspacesByOrganization = async (
   const workspaces = await prisma.workspace.findMany({
     where: {
       organizationId,
+      members: {
+        some: {
+          userId,
+        },
+      },
     },
     include: {
       members: true,
     },
+    orderBy: {
+      createdAt: "desc",
+    },
   });
-
   return workspaces;
 };
 
@@ -323,6 +330,16 @@ export const removeWorkspaceMember = async ({
 
   if (member.userId === removedById) {
     throw AppError("You cannot remove yourself from the workspace", 400);
+  }
+
+  if (member.role === "ADMIN") {
+    const adminCount = workspace.members.filter(
+      (member) => member.role === "ADMIN",
+    ).length;
+
+    if (adminCount === 1) {
+      throw AppError("Cannot remove the last workspace admin", 400);
+    }
   }
 
   await prisma.workspaceMember.delete({

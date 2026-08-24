@@ -63,16 +63,15 @@ export const updateTaskCommentSchema = z.object({
 
 export const getTasksByProjectSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-
   limit: z.coerce.number().int().min(1).max(100).default(20),
 
-  search: z.string().trim().max(200).optional(),
+  search: z.string().trim().optional(),
 
   status: z.enum(["TODO", "IN_PROGRESS", "DONE", "CANCELLED"]).optional(),
 
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
 
-  assigneeId: z.string().trim().optional(),
+  assigneeId: z.string().trim().min(1).optional(),
 
   sortBy: z
     .enum(["createdAt", "updatedAt", "title", "dueDate"])

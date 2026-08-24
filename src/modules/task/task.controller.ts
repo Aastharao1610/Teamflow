@@ -3,6 +3,7 @@ import type { NextFunction, Response } from "express";
 import type { AuthRequest } from "../../middlewares/auth.middleware";
 
 import * as taskService from "./task.service";
+import { getTaskActivities } from "./task.activity";
 
 export const createTask = async (
   req: AuthRequest,
@@ -43,15 +44,19 @@ export const getTasksByProject = async (
     const result = await taskService.getTasksByProject({
       projectId,
       userId: req.user!.userId,
+
       ...(req.query.page !== undefined && {
         page: req.query.page as unknown as number,
       }),
+
       ...(req.query.limit !== undefined && {
         limit: req.query.limit as unknown as number,
       }),
+
       ...(req.query.search !== undefined && {
         search: req.query.search as string,
       }),
+
       ...(req.query.status !== undefined && {
         status: req.query.status as
           | "TODO"
@@ -59,12 +64,15 @@ export const getTasksByProject = async (
           | "DONE"
           | "CANCELLED",
       }),
+
       ...(req.query.priority !== undefined && {
         priority: req.query.priority as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
       }),
+
       ...(req.query.assigneeId !== undefined && {
         assigneeId: req.query.assigneeId as string,
       }),
+
       ...(req.query.sortBy !== undefined && {
         sortBy: req.query.sortBy as
           | "createdAt"
@@ -72,6 +80,7 @@ export const getTasksByProject = async (
           | "title"
           | "dueDate",
       }),
+
       ...(req.query.sortOrder !== undefined && {
         sortOrder: req.query.sortOrder as "asc" | "desc",
       }),
@@ -86,7 +95,6 @@ export const getTasksByProject = async (
     next(error);
   }
 };
-
 export const getTaskById = async (
   req: AuthRequest,
   res: Response,
@@ -359,6 +367,92 @@ export const deleteTaskComment = async (
     res.status(200).json({
       success: true,
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyTasks = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const result = await taskService.getMyTasks({
+      userId: req.user!.userId,
+
+      ...(req.query.page !== undefined && {
+        page: Number(req.query.page),
+      }),
+
+      ...(req.query.limit !== undefined && {
+        limit: Number(req.query.limit),
+      }),
+
+      ...(req.query.search !== undefined && {
+        search: String(req.query.search),
+      }),
+
+      ...(req.query.status !== undefined && {
+        status: req.query.status as
+          | "TODO"
+          | "IN_PROGRESS"
+          | "DONE"
+          | "CANCELLED",
+      }),
+
+      ...(req.query.priority !== undefined && {
+        priority: req.query.priority as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
+      }),
+
+      ...(req.query.dueDateFilter !== undefined && {
+        dueDateFilter: req.query.dueDateFilter as
+          | "OVERDUE"
+          | "TODAY"
+          | "UPCOMING"
+          | "NO_DUE_DATE",
+      }),
+
+      ...(req.query.sortBy !== undefined && {
+        sortBy: req.query.sortBy as
+          | "createdAt"
+          | "updatedAt"
+          | "title"
+          | "dueDate",
+      }),
+
+      ...(req.query.sortOrder !== undefined && {
+        sortOrder: req.query.sortOrder as "asc" | "desc",
+      }),
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result.tasks,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+export const getTaskActivity = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { taskId } = req.params;
+
+    if (!taskId || Array.isArray(taskId)) {
+      throw new Error("Invalid task ID");
+    }
+
+    const activities = await getTaskActivities(taskId, req.user!.userId);
+
+    res.status(200).json({
+      success: true,
+      data: activities,
     });
   } catch (error) {
     next(error);

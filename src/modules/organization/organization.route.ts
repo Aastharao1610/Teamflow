@@ -7,7 +7,12 @@ import {
   updateOrganization,
   getorganizationById,
   deleteOrganization,
+  inviteMember,
   acceptInvitation,
+  rejectInvitation,
+  removeMember,
+  leaveOrganization,
+  transferOwnership,
 } from "./organization.controller";
 
 import { authenticate } from "../../middlewares/auth.middleware";
@@ -16,9 +21,10 @@ import { validate } from "../../middlewares/validation.middleware";
 import {
   acceptInvitationSchema,
   createOrganizationSchema,
+  rejectInvitationSchema,
+  transferOwnershipSchema,
+  inviteMemberSchema,
 } from "./organization.validation";
-import { inviteMember } from "./organization.controller";
-import { inviteMemberSchema } from "./organization.validation";
 
 const router = Router();
 
@@ -45,6 +51,23 @@ router.post(
   authenticate,
   validate(acceptInvitationSchema),
   acceptInvitation,
+);
+router.post(
+  "/reject-invitation",
+  authenticate,
+  validate(rejectInvitationSchema),
+  rejectInvitation,
+);
+
+router.delete("/:id/members/:memberId", authenticate, removeMember);
+
+router.post("/:id/leave", authenticate, leaveOrganization);
+
+router.post(
+  "/:id/transfer-ownership",
+  authenticate,
+  validate(transferOwnershipSchema),
+  transferOwnership,
 );
 
 export default router;

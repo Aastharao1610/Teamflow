@@ -1,6 +1,8 @@
 import prisma from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import crypto from "crypto";
+import { notificationQueue } from "../../lib/queue";
+import { queueOrganizationInvitationEmail } from "../notification/email.queue";
 
 import { sendMail } from "../../lib/mail";
 import type {
@@ -243,20 +245,32 @@ export const inviteMember = async ({
     },
   });
 
-  await sendMail({
+  const inviteUser = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+    select: {
+      id: true,
+    },
+  });
+  await queueOrganizationInvitationEmail({
     to: email,
-    subject: "Organization Invitation",
-    html: `
-      <h2>You've been invited!</h2>
-
-      <p>Click below to join the organization.</p>
-
-     <a href="${process.env.FRONTEND_URL}/invitations/${token}">
-        Accept Invitation
-      </a>
-    `,
+    organizationName: organization.name,
+    token,
   });
 
+  if (inviteUser) {
+    await notificationQueue.add("create-notification", {
+      userId: inviteUser.id,
+      type: "ORGANIZATION_INVITATION",
+      title: "Organization invited",
+      message: `you have been invited to join ${organization.name}`,
+      data: {
+        organizationId,
+        invitationId: invitation.id,
+      },
+    });
+  }
   return invitation;
 };
 
@@ -335,5 +349,241 @@ export const acceptInvitation = async ({
 
   return {
     message: "Invitation accepted successfully",
+  };
+};
+
+export const rejectInvitation = async ({
+  organizationId,
+  userId,
+  inviteToken,
+}: RejectInvitationInput) => {
+  const invitation = await prisma.organizationInvitation.findUnique({
+    where: {
+      token: inviteToken,
+    },
+  });
+
+  if (!invitation) {
+    throw AppError("Invalid invitation token", 400);
+  }
+
+  if (invitation.organizationId !== organizationId) {
+    throw AppError("Invitation does not belong to this organization", 403);
+  }
+
+  if (invitation.status !== "PENDING") {
+    throw AppError("Invitation has already been processed", 400);
+  }
+
+  if (invitation.expiresAt < new Date()) {
+    throw AppError("Invitation has expired", 400);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      email: true,
+    },
+  });
+
+  if (!user) {
+    throw AppError("User not found", 404);
+  }
+
+  if (user.email !== invitation.email) {
+    throw AppError(
+      "This invitation was sent to a different email address",
+      403,
+    );
+  }
+
+  await prisma.organizationInvitation.update({
+    where: {
+      id: invitation.id,
+    },
+    data: {
+      status: "REJECTED",
+    },
+  });
+
+  return {
+    message: "Invitation rejected successfully",
+  };
+};
+export const removeMember = async ({
+  organizationId,
+  memberId,
+  removedById,
+}: RemoveMemberInput) => {
+  const organization = await prisma.organization.findUnique({
+    where: {
+      id: organizationId,
+    },
+  });
+
+  if (!organization) {
+    throw AppError("Organization not found", 404);
+  }
+
+  if (organization.ownerId !== removedById) {
+    throw AppError("Only the organization owner can remove members", 403);
+  }
+
+  if (memberId === organization.ownerId) {
+    throw AppError("Owner cannot be removed from the organization", 400);
+  }
+
+  const member = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId,
+        userId: memberId,
+      },
+    },
+  });
+
+  if (!member) {
+    throw AppError("Organization member not found", 404);
+  }
+
+  await prisma.organizationMember.delete({
+    where: {
+      organizationId_userId: {
+        organizationId,
+        userId: memberId,
+      },
+    },
+  });
+
+  return {
+    message: "Organization member removed successfully",
+  };
+};
+
+export const leaveOrganization = async ({
+  organizationId,
+  userId,
+}: LeaveOrganizationInput) => {
+  const organization = await prisma.organization.findUnique({
+    where: {
+      id: organizationId,
+    },
+  });
+
+  if (!organization) {
+    throw AppError("Organization not found", 404);
+  }
+
+  if (organization.ownerId === userId) {
+    throw AppError(
+      "Owner cannot leave the organization. Transfer ownership first.",
+      400,
+    );
+  }
+
+  const member = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId,
+        userId,
+      },
+    },
+  });
+
+  if (!member) {
+    throw AppError("You are not a member of this organization", 403);
+  }
+
+  await prisma.organizationMember.delete({
+    where: {
+      organizationId_userId: {
+        organizationId,
+        userId,
+      },
+    },
+  });
+
+  return {
+    message: "You left the organization successfully",
+  };
+};
+export const transferOwnership = async ({
+  organizationId,
+  newOwnerId,
+  currentOwnerId,
+}: TransferOwnershipInput) => {
+  const organization = await prisma.organization.findUnique({
+    where: {
+      id: organizationId,
+    },
+  });
+
+  if (!organization) {
+    throw AppError("Organization not found", 404);
+  }
+
+  if (organization.ownerId !== currentOwnerId) {
+    throw AppError("Only the organization owner can transfer ownership", 403);
+  }
+
+  if (newOwnerId === currentOwnerId) {
+    throw AppError("You are already the owner", 400);
+  }
+
+  const newOwner = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId,
+        userId: newOwnerId,
+      },
+    },
+  });
+
+  if (!newOwner) {
+    throw AppError(
+      "New owner must already be a member of the organization",
+      400,
+    );
+  }
+
+  await prisma.$transaction([
+    prisma.organization.update({
+      where: {
+        id: organizationId,
+      },
+      data: {
+        ownerId: newOwnerId,
+      },
+    }),
+
+    prisma.organizationMember.update({
+      where: {
+        organizationId_userId: {
+          organizationId,
+          userId: currentOwnerId,
+        },
+      },
+      data: {
+        role: "MEMBER",
+      },
+    }),
+
+    prisma.organizationMember.update({
+      where: {
+        organizationId_userId: {
+          organizationId,
+          userId: newOwnerId,
+        },
+      },
+      data: {
+        role: "OWNER",
+      },
+    }),
+  ]);
+
+  return {
+    message: "Organization ownership transferred successfully",
   };
 };
