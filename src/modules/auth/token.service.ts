@@ -18,13 +18,19 @@ type LogoutAllInput = {
 };
 
 export const refreshToken = async ({ refreshToken }: RefreshTokenInput) => {
-  const payload = jwt.verify(
-    refreshToken,
-    process.env.REFRESH_TOKEN_SECRET!,
-  ) as {
+  let payload: {
     userId: string;
     deviceId: string;
   };
+
+  try {
+    payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET!) as {
+      userId: string;
+      deviceId: string;
+    };
+  } catch {
+    throw AppError("Invalid refresh token", 401);
+  }
 
   const redisKey = `refresh:${payload.userId}:${payload.deviceId}`;
 
@@ -53,7 +59,6 @@ export const refreshToken = async ({ refreshToken }: RefreshTokenInput) => {
         deviceId: payload.deviceId,
       },
     },
-
     data: {
       lastSeenAt: new Date(),
     },
@@ -64,7 +69,6 @@ export const refreshToken = async ({ refreshToken }: RefreshTokenInput) => {
     refreshToken: newRefreshToken,
   };
 };
-
 export const logout = async ({ userId, deviceId }: LogoutInput) => {
   await redis.del(`refresh:${userId}:${deviceId}`);
 

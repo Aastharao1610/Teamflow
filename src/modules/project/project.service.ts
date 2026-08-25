@@ -366,16 +366,6 @@ export const removeProjectMember = async ({
     throw AppError("Project not found", 404);
   }
 
-  const admin = project.members.find((member) => member.userId === removedById);
-
-  if (!admin) {
-    throw AppError("You are not a member of this project", 403);
-  }
-
-  if (admin.role !== "ADMIN") {
-    throw AppError("Only project admins can remove members", 403);
-  }
-
   const member = project.members.find((member) => member.userId === userId);
 
   if (!member) {
@@ -384,6 +374,16 @@ export const removeProjectMember = async ({
 
   if (member.userId === removedById) {
     throw AppError("You cannot remove yourself from the project", 400);
+  }
+
+  const admin = project.members.find((member) => member.userId === removedById);
+
+  if (!admin) {
+    throw AppError("You are not a member of this project", 403);
+  }
+
+  if (admin.role !== "ADMIN") {
+    throw AppError("Only project admins can remove members", 403);
   }
 
   if (member.role === "ADMIN") {

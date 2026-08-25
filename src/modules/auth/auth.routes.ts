@@ -32,9 +32,13 @@ import {
 
 const router = Router();
 
-router.post("/register", authLimiter, validate(registerSchema), register);
+// router.post("/register", authLimiter, validate(registerSchema), register);
 
-router.post("/login", authLimiter, validate(loginSchema), login);
+// router.post("/login", authLimiter, validate(loginSchema), login);
+
+router.post("/register", validate(registerSchema), register);
+
+router.post("/login", validate(loginSchema), login);
 
 router.post("/refresh-token", validate(refreshTokenSchema), refreshToken);
 
@@ -42,32 +46,33 @@ router.post("/logout", authenticate, logout);
 
 router.post("/logout-all", authenticate, logoutAll);
 
-router.post("/send-email-otp", authLimiter, validate(sendOtpSchema), sendOtp);
+// router.post("/send-email-otp", authLimiter, validate(sendOtpSchema), sendOtp);
+router.post("/send-email-otp", validate(sendOtpSchema), sendOtp);
 
 router.post(
   "/verify-email-otp",
-  authLimiter,
+  // authLimiter,
   validate(verifyOtpSchema),
   verifyOtp,
 );
 
 router.post(
   "/resend-email-otp",
-  authLimiter,
+  // authLimiter,
   validate(resendOtpSchema),
   resendOtp,
 );
 
 router.post(
   "/forgot-password",
-  authLimiter,
+  // authLimiter,
   validate(forgotPasswordSchema),
   forgotPassword,
 );
 
 router.post(
   "/reset-password",
-  authLimiter,
+  // authLimiter,
   validate(resetPasswordSchema),
   resetPassword,
 );
