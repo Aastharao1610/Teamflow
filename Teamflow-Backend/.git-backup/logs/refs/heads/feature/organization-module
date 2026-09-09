@@ -1,0 +1,4 @@
+0000000000000000000000000000000000000000 b9894d01143288b300215113142dfef34d69ab9c Apple <apple@Apples-MacBook-Pro.local> 1782989737 +0530	branch: Created from HEAD
+b9894d01143288b300215113142dfef34d69ab9c f94527f40eb0978373b6557ad9c3ae79bef30ae1 Apple <apple@Apples-MacBook-Pro.local> 1782989808 +0530	commit: Add organization module
+f94527f40eb0978373b6557ad9c3ae79bef30ae1 d0a613a2920e69bbb2dbde084af196b8c004a311 Aastha Rao <aastharao1610@gmail.com> 1782994599 +0530	commit: Implement organization invitation and membership management features
+d0a613a2920e69bbb2dbde084af196b8c004a311 c47b3d7ce2a21adbc158b8d8c5dca47ae04390a6 Aastha Rao <aastharao1610@gmail.com> 1782997334 +0530	commit: refactor: improve organization module

@@ -1,0 +1,16 @@
+0000000000000000000000000000000000000000 7074793474b98c4d551ba70c826d25fef4084e92 Apple <apple@Apples-MacBook-Pro.local> 1782736620 +0530	commit (initial): Team flow authentication flow
+7074793474b98c4d551ba70c826d25fef4084e92 0000000000000000000000000000000000000000 Apple <apple@Apples-MacBook-Pro.local> 1782736638 +0530	Branch: renamed refs/heads/main to refs/heads/main
+7074793474b98c4d551ba70c826d25fef4084e92 7074793474b98c4d551ba70c826d25fef4084e92 Apple <apple@Apples-MacBook-Pro.local> 1782736638 +0530	Branch: renamed refs/heads/main to refs/heads/main
+7074793474b98c4d551ba70c826d25fef4084e92 a8c58dfd58a1a9337207dd08470fdd3b75220282 Apple <apple@Apples-MacBook-Pro.local> 1782736805 +0530	commit: Remove node_modules from repository
+a8c58dfd58a1a9337207dd08470fdd3b75220282 8323f522f43134f9f5ad440f13e4359c82e02bd8 Apple <apple@Apples-MacBook-Pro.local> 1782823906 +0530	commit: Add password management functions: forgot, reset, and change password
+8323f522f43134f9f5ad440f13e4359c82e02bd8 b9894d01143288b300215113142dfef34d69ab9c Apple <apple@Apples-MacBook-Pro.local> 1782824533 +0530	commit (amend): Add password management functions: forgot, reset, and change password
+b9894d01143288b300215113142dfef34d69ab9c b9894d01143288b300215113142dfef34d69ab9c Apple <apple@Apples-MacBook-Pro.local> 1782989686 +0530	checkout: moving from main to main
+b9894d01143288b300215113142dfef34d69ab9c b9894d01143288b300215113142dfef34d69ab9c Apple <apple@Apples-MacBook-Pro.local> 1782989737 +0530	checkout: moving from main to feature/organization-module
+b9894d01143288b300215113142dfef34d69ab9c f94527f40eb0978373b6557ad9c3ae79bef30ae1 Apple <apple@Apples-MacBook-Pro.local> 1782989808 +0530	commit: Add organization module
+f94527f40eb0978373b6557ad9c3ae79bef30ae1 d0a613a2920e69bbb2dbde084af196b8c004a311 Aastha Rao <aastharao1610@gmail.com> 1782994599 +0530	commit: Implement organization invitation and membership management features
+d0a613a2920e69bbb2dbde084af196b8c004a311 c47b3d7ce2a21adbc158b8d8c5dca47ae04390a6 Aastha Rao <aastharao1610@gmail.com> 1782997334 +0530	commit: refactor: improve organization module
+c47b3d7ce2a21adbc158b8d8c5dca47ae04390a6 b9894d01143288b300215113142dfef34d69ab9c Aastha Rao <aastharao1610@gmail.com> 1782997444 +0530	checkout: moving from feature/organization-module to main
+b9894d01143288b300215113142dfef34d69ab9c 76ed21a6c6da994ac1084a1868e1a5ed03a55f96 Aastha Rao <aastharao1610@gmail.com> 1783058003 +0530	pull origin main: Fast-forward
+76ed21a6c6da994ac1084a1868e1a5ed03a55f96 631f8485c5b96ff71c39b93ac33fadc21848a3b5 Aastha Rao <aastharao1610@gmail.com> 1787230602 +0530	commit: created api for workspace, project,task ,notification
+631f8485c5b96ff71c39b93ac33fadc21848a3b5 5296980c3e986e2edbd72e19496dc6f78858d245 Aastha Rao <aastharao1610@gmail.com> 1787551580 +0530	commit: added queuse
+5296980c3e986e2edbd72e19496dc6f78858d245 6b1fb91ad75481a16a57e83b5b78a66be0c2a2c8 Aastha Rao <aastharao1610@gmail.com> 1787655326 +0530	commit: test cases
