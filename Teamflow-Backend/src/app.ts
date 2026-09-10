@@ -8,11 +8,18 @@ import taskroutes from "./modules/task/task.route";
 import notificationRoute from "./modules/notification/notification.route";
 import dashboardRoutes from "./modules/dashboard/dashboard.route";
 import helmet from "helmet";
+import cors from "cors";
 
 const app = express();
 
 app.use(helmet());
 app.use(express.json());
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  }),
+);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ message: "Testing the Server route is working fine" });

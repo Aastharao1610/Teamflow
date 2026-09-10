@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Eye, EyeOff, Workflow } from "lucide-react";
+import { registerUser } from "@/services/auth.service";
+import axios from "axios";
+import { useToast } from "@/hooks/use-toast";
 
 const benefits = [
   "Create unlimited projects",
@@ -12,7 +15,64 @@ const benefits = [
 ];
 
 export default function SignupPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  const { showToast } = useToast();
+  // useEffect(() => {
+  //   const signup = async () => {
+
+  //     try {
+  //       const res = await axios.post(
+  //       `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/signup`,
+  //     );
+  //     } catch (error) {
+  //       return NextResponse.json({ error: "Failed to signup" }, { status: 500 });
+  //     }
+
+  //   };
+
+  //   signup();
+  // }, []);
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const data = await registerUser({
+        name,
+        email,
+        password,
+      });
+
+      console.log("Signup successful:", data);
+
+      showToast(
+        "success",
+        "Account created",
+        "Your Teamflow account has been created successfully.",
+      );
+    } catch (error) {
+      console.error("Signup failed:", error);
+
+      if (axios.isAxiosError(error)) {
+        showToast(
+          "error",
+          "Signup failed",
+          error.response?.data?.message ||
+            "Something went wrong. Please try again.",
+        );
+      } else {
+        showToast(
+          "error",
+          "Signup failed",
+          "Something went wrong. Please try again.",
+        );
+      }
+    }
+  };
 
   return (
     <main className="min-h-screen bg-white">
@@ -92,10 +152,7 @@ export default function SignupPage() {
               </p>
             </div>
 
-            <form
-              className="space-y-5"
-              onSubmit={(event) => event.preventDefault()}
-            >
+            <form className="space-y-5" onSubmit={handleSignup}>
               {/* Name */}
               <div>
                 <label
@@ -108,6 +165,8 @@ export default function SignupPage() {
                 <input
                   id="name"
                   type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="Alex Johnson"
                   className="h-11 w-full rounded-lg border border-zinc-200 px-3.5 text-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
                 />
@@ -125,6 +184,8 @@ export default function SignupPage() {
                 <input
                   id="signup-email"
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
                   className="h-11 w-full rounded-lg border border-zinc-200 px-3.5 text-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
                 />
@@ -143,6 +204,8 @@ export default function SignupPage() {
                   <input
                     id="signup-password"
                     type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="Create a password"
                     className="h-11 w-full rounded-lg border border-zinc-200 px-3.5 pr-11 text-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-100"
                   />
@@ -194,7 +257,7 @@ export default function SignupPage() {
               {/* Submit */}
               <button
                 type="submit"
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-950 text-sm font-medium text-white transition hover:bg-zinc-800"
+                className="flex cursor-pointer h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-950 text-sm font-medium text-white transition hover:bg-zinc-800"
               >
                 Create account
                 <ArrowRight size={16} />
